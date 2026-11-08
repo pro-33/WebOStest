@@ -65,7 +65,6 @@ function seedJunkFiles() {
         STATE.customItems = [...STATE.customItems, ...junkFolders];
         STATE.files = { ...STATE.files, ...junkFiles };
         
-        // Add file icons to desktop
         Object.keys(junkFiles).forEach((filename, idx) => {
             STATE.customItems.push({
                 id: 'file_' + filename,
@@ -83,10 +82,98 @@ function seedJunkFiles() {
 }
 
 /* ============================================
+   MODAL DIALOG SYSTEM (вместо alert/prompt)
+   ============================================ */
+const Modal = {
+    overlay: null,
+    container: null,
+    
+    init() {
+        this.overlay = document.getElementById('modal-overlay');
+        this.container = document.getElementById('modal-container');
+    },
+    
+    show(title, content, buttons = []) {
+        this.overlay.classList.add('visible');
+        this.container.classList.add('visible');
+        
+        const buttonsHtml = buttons.map((btn, idx) => 
+            `<button class="modal-btn ${btn.primary ? 'primary' : ''}" data-btn-idx="${idx}">${btn.text}</button>`
+        ).join('');
+        
+        this.container.innerHTML = `
+            <div class="modal-header">
+                <div class="modal-title">${title}</div>
+                <button class="modal-close" onclick="Modal.close()">✕</button>
+            </div>
+            <div class="modal-body">${content}</div>
+            ${buttons.length > 0 ? `<div class="modal-footer">${buttonsHtml}</div>` : ''}
+        `;
+        
+        // Attach button handlers
+        this.container.querySelectorAll('.modal-btn').forEach((btn, idx) => {
+            btn.addEventListener('click', () => {
+                if (buttons[idx].onClick) buttons[idx].onClick();
+                if (buttons[idx].close !== false) Modal.close();
+            });
+        });
+        
+        // Close on overlay click
+        this.overlay.onclick = () => Modal.close();
+    },
+    
+    alert(message, title = 'Windows XP') {
+        this.show(title, `<p>${message}</p>`, [
+            { text: 'OK', primary: true, onClick: () => {} }
+        ]);
+    },
+    
+    confirm(message, title = 'Windows XP', onConfirm = () => {}, onCancel = () => {}) {
+        this.show(title, `<p>${message}</p>`, [
+            { text: 'Да', primary: true, onClick: onConfirm },
+            { text: 'Нет', onClick: onCancel }
+        ]);
+    },
+    
+    prompt(message, title = 'Windows XP', defaultValue = '', onConfirm = () => {}) {
+        this.show(title, `
+            <p>${message}</p>
+            <input type="text" id="modal-prompt-input" value="${defaultValue}">
+        `, [
+            { text: 'OK', primary: true, onClick: () => {
+                const input = document.getElementById('modal-prompt-input');
+                if (input) onConfirm(input.value);
+            }},
+            { text: 'Отмена', onClick: () => onConfirm(null) }
+        ]);
+        
+        // Focus input
+        setTimeout(() => {
+            const input = document.getElementById('modal-prompt-input');
+            if (input) { input.focus(); input.select(); }
+        }, 100);
+    },
+    
+    close() {
+        this.overlay.classList.remove('visible');
+        this.container.classList.remove('visible');
+        this.container.innerHTML = '';
+    }
+};
+
+/* ============================================
    INITIALIZATION
    ============================================ */
 function init() {
+    Modal.init();
     seedJunkFiles();
+    
+    // Auto-create first user if no accounts exist
+    if (STATE.accounts.length === 0 && !STATE.username) {
+        STATE.accounts.push({ name: 'Пользователь', avatar: '👨‍💻', created: Date.now() });
+        localStorage.setItem('xp_accounts', JSON.stringify(STATE.accounts));
+    }
+    
     if (STATE.username) {
         document.getElementById('login-screen').classList.add('hidden');
         showDesktop();
@@ -98,14 +185,19 @@ function init() {
 
 function showLogin() {
     renderUserAccounts();
+    
     document.getElementById('welcome-shutdown').addEventListener('click', () => {
-        document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-size:24px;flex-direction:column;gap:15px;"><div>Компьютер выключен</div><button onclick="location.reload()" style="padding:10px 20px;font-size:14px;cursor:pointer;background:#4A8BC2;color:#fff;border:none;border-radius:4px;">Включить снова</button></div>`;
+        Modal.confirm('Выключить компьютер?', 'Завершение работы', 
+            () => {
+                document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-size:24px;flex-direction:column;gap:15px;"><div>Компьютер выключен</div><button onclick="location.reload()" style="padding:10px 20px;font-size:14px;cursor:pointer;background:#4A8BC2;color:#fff;border:none;border-radius:4px;">Включить снова</button></div>`;
+            }
+        );
     });
 
     document.getElementById('cancel-new-user').addEventListener('click', () => document.getElementById('new-user-modal').classList.remove('visible'));
     document.getElementById('create-new-user').addEventListener('click', () => {
         const name = document.getElementById('new-user-name').value.trim();
-        if (!name) { alert('Введите имя!'); return; }
+        if (!name) { Modal.alert('Введите имя пользователя!', 'Ошибка'); return; }
         STATE.accounts.push({ name, avatar: window.newAvatarSelected || '👨‍💻', created: Date.now() });
         localStorage.setItem('xp_accounts', JSON.stringify(STATE.accounts));
         document.getElementById('new-user-modal').classList.remove('visible');
@@ -190,8 +282,6 @@ function showDesktop() {
 function updateRecycleIcon() {
     const recycleIcon = DEFAULT_ICONS.find(i => i.id === 'recycle');
     if (recycleIcon) {
-        recycleIcon.icon = STATE.recycleBin.length > 0 ? '🗑️' : '🗑️'; // Можно заменить на разные эмодзи или картинки
-        // Для наглядности меняем подпись
         recycleIcon.label = STATE.recycleBin.length > 0 ? 'Корзина (полная)' : 'Корзина';
     }
 }
@@ -415,7 +505,7 @@ function openApp(appId) {
     }
 }
 
-// --- INTERNET EXPLORER 6 (Fake but functional) ---
+// --- INTERNET EXPLORER 6 ---
 function openBrowser() {
     const ieToolbar = `
         <button class="toolbar-btn" onclick="window.ieBack()">⬅ Назад</button>
@@ -434,7 +524,6 @@ function openBrowser() {
         statusBar: true
     });
 
-    // Setup address bar
     setTimeout(() => {
         const winEl = document.querySelector('.window[data-id="ie"]');
         if (!winEl) return;
@@ -450,7 +539,6 @@ function openBrowser() {
         goBtn.addEventListener('click', navigate);
         addressInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') navigate(); });
         
-        // Initial load
         window.ieNavigate('about:home');
     }, 100);
 }
@@ -470,7 +558,6 @@ window.ieNavigate = function(url) {
         contentDiv.innerHTML = getIEPageContent(url);
         if (statusDiv) statusDiv.textContent = 'Готово';
         
-        // Update history
         if (STATE.browserHistoryIndex < STATE.browserHistory.length - 1) {
             STATE.browserHistory = STATE.browserHistory.slice(0, STATE.browserHistoryIndex + 1);
         }
@@ -544,7 +631,7 @@ function getIEPageContent(url) {
             <p><strong>Шифрование:</strong> 128-бит</p>
             <p><strong>Обновления:</strong> Не установлены</p>
             <p style="margin-top:20px; color:#666; font-size:11px;">© Корпорация Майкрософт, 2001-2008. Все права защищены.</p>
- “`
+        `;
     }
     return `<h1>404 Страница не найдена</h1><p>Не удалось отобразить страницу по адресу: ${url}</p>`;
 }
@@ -568,7 +655,7 @@ window.performIESearch = function() {
     `;
 };
 
-// --- RECYCLE BIN (Рабочая!) ---
+// --- RECYCLE BIN ---
 function openRecycleBin() {
     let content = '<div class="explorer-content">';
     if (STATE.recycleBin.length === 0) {
@@ -596,7 +683,6 @@ function openRecycleBin() {
         toolbar: `<button class="toolbar-btn">⬆️ Вверх</button>`
     });
 
-    // Add click to restore single item
     setTimeout(() => {
         document.querySelectorAll('[data-recycle-idx]').forEach(el => {
             el.addEventListener('dblclick', () => {
@@ -619,7 +705,7 @@ window.restoreFromRecycle = function(idx) {
     STATE.recycleBin.splice(idx, 1);
     localStorage.setItem('xp_recycle_bin', JSON.stringify(STATE.recycleBin));
     updateRecycleIcon();
-    openRecycleBin(); // Refresh
+    openRecycleBin();
     renderDesktopIcons();
 };
 
@@ -640,12 +726,14 @@ window.restoreAllFromRecycle = function() {
 };
 
 window.emptyRecycleBin = function() {
-    if (confirm('Вы уверены, что хотите навсегда удалить все объекты из корзины?')) {
-        STATE.recycleBin = [];
-        localStorage.setItem('xp_recycle_bin', JSON.stringify(STATE.recycleBin));
-        updateRecycleIcon();
-        openRecycleBin();
-    }
+    Modal.confirm('Вы уверены, что хотите навсегда удалить все объекты из корзины?', 'Очистка корзины',
+        () => {
+            STATE.recycleBin = [];
+            localStorage.setItem('xp_recycle_bin', JSON.stringify(STATE.recycleBin));
+            updateRecycleIcon();
+            openRecycleBin();
+        }
+    );
 };
 
 // --- FILE SYSTEM ---
@@ -688,9 +776,7 @@ window.saveNotepad = function(id) {
     const fname = id.replace('notepad_', '') || 'untitled';
     STATE.files[fname] = textarea.value;
     localStorage.setItem('xp_files', JSON.stringify(STATE.files));
-    // Update status bar if exists
-    const statusDiv = document.querySelector(`.window[data-id="${id}"] .window-status-bar`);
-    if(statusDiv) statusDiv.textContent = 'Сохранено';
+    Modal.alert('Файл сохранён!', 'Блокнот');
 };
 
 window.clearNotepad = function(id) {
@@ -747,10 +833,10 @@ function openMinesweeper() {
             board[r][c].revealed = true; revealed++;
             const cellEl = document.querySelector(`.ms-cell[data-r="${r}"][data-c="${c}"]`);
             cellEl.classList.add('revealed');
-            if(board[r][c].mine) { cellEl.classList.add('mine'); cellEl.textContent = '💣'; gameOver = true; setTimeout(()=>alert('Вы проиграли!'), 100); return; }
+            if(board[r][c].mine) { cellEl.classList.add('mine'); cellEl.textContent = '💣'; gameOver = true; setTimeout(()=>Modal.alert('Вы проиграли!', 'Сапёр'), 100); return; }
             if(board[r][c].count > 0) { cellEl.textContent = board[r][c].count; cellEl.classList.add(`ms-${board[r][c].count}`); }
             else { for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) revealCell(r+dr, c+dc); }
-            if(revealed === rows*cols - minesCount) { gameOver = true; setTimeout(()=>alert('Поздравляем! Вы выиграли! 🎉'), 100); }
+            if(revealed === rows*cols - minesCount) { gameOver = true; setTimeout(()=>Modal.alert('Поздравляем! Вы выиграли! 🎉', 'Сапёр'), 100); }
         }
     }, 100);
 }
@@ -775,7 +861,6 @@ window.startSnake = function() {
     let food = {x: 15, y: 15};
     let dx = 0, dy = 0;
     let score = 0;
-    let gameInterval;
 
     document.getElementById('snake-score').textContent = '0';
 
@@ -783,23 +868,17 @@ window.startSnake = function() {
 
     function draw() {
         ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw food
         ctx.fillStyle = 'red'; ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize-2, gridSize-2);
-        
-        // Draw snake
         ctx.fillStyle = 'lime';
         snake.forEach(segment => {
             ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize-2, gridSize-2);
         });
 
-        // Move
         const head = {x: snake[0].x + dx, y: snake[0].y + dy};
         
-        // Collision with walls or self
         if(head.x < 0 || head.x >= 19 || head.y < 0 || head.y >= 19 || snake.some(s => s.x === head.x && s.y === head.y)) {
             clearInterval(window.snakeInterval);
-            alert('Игра окончена! Счёт: ' + score);
+            Modal.alert('Игра окончена! Счёт: ' + score, 'Змейка');
             return;
         }
         
@@ -859,7 +938,6 @@ window.initTTT = function() {
             cells[i] = currentPlayer;
             cell.textContent = currentPlayer;
             
-            // Check win
             const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
             if(wins.some(w => cells[w[0]] && cells[w[0]] === cells[w[1]] && cells[w[1]] === cells[w[2]])) {
                 document.getElementById('ttt-status').textContent = `Победил ${currentPlayer}! 🎉`;
@@ -951,6 +1029,7 @@ window.clearCanvas = function() {
 window.saveCanvas = function() {
     const canvas = document.getElementById('paint-canvas'); if (!canvas) return;
     const link = document.createElement('a'); link.download = 'paint-image.png'; link.href = canvas.toDataURL(); link.click();
+    Modal.alert('Изображение сохранено!', 'Paint');
 };
 
 function openControlPanel() {
@@ -1028,7 +1107,7 @@ window.executeRun = function() {
     else if (cmd === 'iexplore' || cmd === 'ie') openApp('ie');
     else if (cmd === 'winmine' || cmd === 'minesweeper') openApp('minesweeper');
     else if (cmd === 'control') openApp('controlpanel');
-    else alert(`Windows не удается найти '${cmd}'. Проверьте правильность имени.`);
+    else Modal.alert(`Windows не удается найти '${cmd}'. Проверьте правильность имени.`, 'Выполнить');
 };
 
 function openHelp() {
@@ -1054,7 +1133,7 @@ function openHelp() {
                 <li>Используйте "Очистить корзину" для безвозвратного удаления</li>
             </ul>
         </div>`
-1   });
+    });
 }
 
 /* ============================================
@@ -1125,13 +1204,17 @@ function setupEventListeners() {
     });
 
     document.getElementById('logout-btn').addEventListener('click', () => {
-        if (confirm('Выйти из системы?')) { localStorage.removeItem('xp_username'); localStorage.removeItem('xp_avatar'); location.reload(); }
+        Modal.confirm('Выйти из системы?', 'Выход',
+            () => { localStorage.removeItem('xp_username'); localStorage.removeItem('xp_avatar'); location.reload(); }
+        );
     });
 
     document.getElementById('shutdown-btn').addEventListener('click', () => {
-        if (confirm('Выключить компьютер?')) {
-            document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-size:24px;flex-direction:column;gap:15px;"><div>Компьютер выключен</div><button onclick="location.reload()" style="padding:10px 20px;font-size:14px;cursor:pointer;background:#4A8BC2;color:#fff;border:none;border-radius:4px;">Включить снова</button></div>`;
-        }
+        Modal.confirm('Выключить компьютер?', 'Завершение работы',
+            () => {
+                document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-size:24px;flex-direction:column;gap:15px;"><div>Компьютер выключен</div><button onclick="location.reload()" style="padding:10px 20px;font-size:14px;cursor:pointer;background:#4A8BC2;color:#fff;border:none;border-radius:4px;">Включить снова</button></div>`;
+            }
+        );
     });
 }
 
@@ -1145,21 +1228,25 @@ function handleContextAction(action) {
             STATE.iconSize = 'small'; localStorage.setItem('xp_icon_size', 'small');
             document.querySelectorAll('.desktop-icon .icon-img').forEach(i => i.style.fontSize = '24px'); break;
         case 'new-folder':
-            const folderName = prompt('Имя папки:');
-            if (folderName) {
-                STATE.customItems.push({ id: 'folder_' + Date.now(), icon: '📁', label: folderName, x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 });
-                localStorage.setItem('xp_custom_items', JSON.stringify(STATE.customItems));
-                renderDesktopIcons();
-            } break;
+            Modal.prompt('Введите имя папки:', 'Новая папка', 'Новая папка', (name) => {
+                if (name) {
+                    STATE.customItems.push({ id: 'folder_' + Date.now(), icon: '📁', label: name, x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 });
+                    localStorage.setItem('xp_custom_items', JSON.stringify(STATE.customItems));
+                    renderDesktopIcons();
+                }
+            });
+            break;
         case 'new-file':
-            const fileName = prompt('Имя файла (например, документ.txt):');
-            if (fileName) {
-                STATE.files[fileName] = '';
-                localStorage.setItem('xp_files', JSON.stringify(STATE.files));
-                STATE.customItems.push({ id: 'file_' + fileName, icon: '📄', label: fileName, x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 });
-                localStorage.setItem('xp_custom_items', JSON.stringify(STATE.customItems));
-                renderDesktopIcons();
-            } break;
+            Modal.prompt('Введите имя файла (например, документ.txt):', 'Новый файл', 'документ.txt', (name) => {
+                if (name) {
+                    STATE.files[name] = '';
+                    localStorage.setItem('xp_files', JSON.stringify(STATE.files));
+                    STATE.customItems.push({ id: 'file_' + name, icon: '📄', label: name, x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 });
+                    localStorage.setItem('xp_custom_items', JSON.stringify(STATE.customItems));
+                    renderDesktopIcons();
+                }
+            });
+            break;
         case 'personalize': openPersonalization(); break;
         case 'delete-selected':
             if (STATE.selectedItem) deleteSelectedItem(STATE.selectedItem);
@@ -1168,44 +1255,46 @@ function handleContextAction(action) {
 }
 
 function deleteSelectedItem(id) {
-    if (confirm('Вы уверены, что хотите переместить этот объект в Корзину?')) {
-        let itemData = null;
-        
-        if (id.startsWith('folder_')) {
-            const idx = STATE.customItems.findIndex(i => i.id === id);
-            if (idx !== -1) {
-                itemData = { ...STATE.customItems[idx], type: 'folder' };
-                STATE.customItems.splice(idx, 1);
-                localStorage.setItem('xp_custom_items', JSON.stringify(STATE.customItems));
+    Modal.confirm('Вы уверены, что хотите переместить этот объект в Корзину?', 'Удаление объекта',
+        () => {
+            let itemData = null;
+            
+            if (id.startsWith('folder_')) {
+                const idx = STATE.customItems.findIndex(i => i.id === id);
+                if (idx !== -1) {
+                    itemData = { ...STATE.customItems[idx], type: 'folder' };
+                    STATE.customItems.splice(idx, 1);
+                    localStorage.setItem('xp_custom_items', JSON.stringify(STATE.customItems));
+                }
+            } else if (id.startsWith('file_')) {
+                const fileName = id.replace('file_', '');
+                const idx = STATE.customItems.findIndex(i => i.id === id);
+                if (idx !== -1) {
+                    itemData = { ...STATE.customItems[idx], type: 'file', content: STATE.files[fileName] };
+                    STATE.customItems.splice(idx, 1);
+                    delete STATE.files[fileName];
+                    localStorage.setItem('xp_files', JSON.stringify(STATE.files));
+                    localStorage.setItem('xp_custom_items', JSON.stringify(STATE.customItems));
+                }
             }
-        } else if (id.startsWith('file_')) {
-            const fileName = id.replace('file_', '');
-            const idx = STATE.customItems.findIndex(i => i.id === id);
-            if (idx !== -1) {
-                itemData = { ...STATE.customItems[idx], type: 'file', content: STATE.files[fileName] };
-                STATE.customItems.splice(idx, 1);
-                delete STATE.files[fileName];
-                localStorage.setItem('xp_files', JSON.stringify(STATE.files));
-                localStorage.setItem('xp_custom_items', JSON.stringify(STATE.customItems));
+            
+            if (itemData) {
+                STATE.recycleBin.push(itemData);
+                localStorage.setItem('xp_recycle_bin', JSON.stringify(STATE.recycleBin));
+                updateRecycleIcon();
             }
+            
+            delete STATE.iconPositions[id];
+            localStorage.setItem('xp_icon_positions', JSON.stringify(STATE.iconPositions));
+            renderDesktopIcons();
         }
-        
-        if (itemData) {
-            STATE.recycleBin.push(itemData);
-            localStorage.setItem('xp_recycle_bin', JSON.stringify(STATE.recycleBin));
-            updateRecycleIcon();
-        }
-        
-        delete STATE.iconPositions[id];
-        localStorage.setItem('xp_icon_positions', JSON.stringify(STATE.iconPositions));
-        renderDesktopIcons();
-    }
+    );
 }
 
 window.resetSystem = function() {
-    if (confirm('Вы уверены? Все данные будут удалены!')) {
-        localStorage.clear(); location.reload();
-    }
+    Modal.confirm('Вы уверены? Все данные (файлы, настройки, аккаунты) будут удалены!', 'Сброс системы',
+        () => { localStorage.clear(); location.reload(); }
+    );
 };
 
 function startClock() {
