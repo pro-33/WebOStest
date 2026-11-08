@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windows XP Professional</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Экран приветствия (Welcome Screen) -->
+    <div id="login-screen">
+        <div class="xp-top-bar">
+            <div class="xp-logo-small">
+                <span class="red"></span><span class="green"></span><span class="blue"></span><span class="yellow"></span>
+            </div>
+            <div class="xp-top-title">Microsoft Windows XP</div>
+        </div>
+        <div class="xp-welcome-content">
+            <h1 class="welcome-title">Добро пожаловать</h1>
+            <p class="welcome-subtitle">Чтобы начать работу, выберите учётную запись</p>
+            <div class="user-accounts" id="user-accounts"></div>
+            <div class="password-prompt" id="password-prompt">
+                <div class="prompt-avatar" id="prompt-avatar">😀</div>
+                <div class="prompt-name" id="prompt-name">User</div>
+                <input type="password" id="prompt-password" placeholder="Пароль (необязательно)">
+                <button class="prompt-btn" id="prompt-login-btn">Войти ➜</button>
+                <span class="back-link" id="prompt-back">⬅ Назад к выбору пользователя</span>
+            </div>
+        </div>
+        <div class="xp-bottom-bar">
+            <button class="shutdown-btn" id="welcome-shutdown">
+                <div class="shutdown-icon">⏻</div>
+                <span>Выключить компьютер</>
+            </button>
+        </div>
+        <div class="new-user-modal" id="new-user-modal">
+            <h3>🆕 Создание новой учётной записи</h3>
+            <div class="modal-field">
+                <label>Имя пользователя:</label>
+                <input type="text" id="new-user-name" maxlength="20" placeholder="Введите имя...">
+            </div>
+            <div class="modal-field">
+                <label>Выберите аватар:</label>
+                <div class="avatar-selection" id="new-avatar-selection">
+                    <div class="avatar-option selected" data-avatar="👨‍💻">👨‍💻</div>
+                    <div class="avatar-option" data-avatar="👩‍💻">👩‍💻</div>
+                    <div class="avatar-option" data-avatar="😎">😎</div>
+                    <div class="avatar-option" data-avatar="🦊">🦊</div>
+                    <div class="avatar-option" data-avatar="🐱">🐱</div>
+                    <div class="avatar-option" data-avatar="👾">👾</div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="cancel-new-user">Отмена</button>
+                <button class="primary" id="create-new-user">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Рабочий стол -->
+    <div id="desktop"></div>
+
+    <!-- Контекстное меню -->
+    <div id="context-menu">
+        <div class="ctx-item" data-action="refresh">🔄 Обновить</div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item" data-action="view-large">🔲 Крупные значки</div>
+        <div class="ctx-item" data-action="view-small">🔳 Мелкие значки</div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item" data-action="new-folder">📁 Создать папку</div>
+        <div class="ctx-item" data-action="new-file">📄 Создать текстовый файл</div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item" data-action="personalize">🎨 Свойства: Экран</div>
+        <div class="ctx-item delete-item" data-action="delete-selected" style="display:none;">🗑️ Удалить</div>
+    </div>
+
+    <!-- Меню Пуск -->
+    <div id="start-menu">
+        <div class="start-header">
+            <div class="user-avatar" id="start-avatar">👨‍💻</div>
+            <div class="user-name" id="start-username">User</div>
+        </div>
+        <div class="start-body">
+            <div class="start-left">
+                <div class="start-item" data-app="ie"><span class="item-icon">🌐</span><span class="item-label">Internet Explorer</span></div>
+                <div class="start-item" data-app="notepad"><span class="item-icon">📝</span><span class="item-label">Блокнот</span></div>
+                <div class="start-item" data-app="paint"><span class="item-icon">🎨</span><span class="item-label">Paint</span></div>
+                <div class="start-item" data-app="calculator"><span class="item-icon">🧮</span><span class="item-label">Калькулятор</span></div>
+                <div class="start-item" data-app="minesweeper"><span class="item-icon">💣</span><span class="item-label">Сапёр</span></div>
+                <div class="start-divider"></div>
+                <div class="start-item" data-app="mycomputer"><span class="item-icon">💻</span><span class="item-label">Мой компьютер</span></div>
+                <div class="start-item" data-app="controlpanel"><span class="item-icon">⚙️</span><span class="item-label">Панель управления</span></div>
+                <div class="start-item" data-app="run"><span class="item-icon">⌨️</span><span class="item-label">Выполнить...</span></div>
+            </div>
+            <div class="start-right">
+                <div class="start-item" data-app="mydocuments"><span class="item-icon">📂</span><span class="item-label">Мои документы</span></div>
+                <div class="start-item" data-app="mypictures"><span class="item-icon">🖼️</span><span class="item-label">Мои рисунки</span></div>
+                <div class="start-item" data-app="mymusic"><span class="item-icon">🎵</span><span class="item-label">Моя музыка</span></div>
+                <div class="start-divider"></div>
+                <div class="start-item" data-app="help"><span class="item-icon">❓</span><span class="item-label">Справка</span></div>
+            </div>
+        </div>
+        <div class="start-footer">
+            <button id="logout-btn">🔒 Выйти</button>
+            <button id="shutdown-btn">⏻ Выключить</button>
+        </div>
+    </div>
+
+    <!-- Панель задач -->
+    <div id="taskbar">
+        <button id="start-btn">
+            <div class="start-icon">
+                <span class="red"></span><span class="green"></span><span class="blue"></span><span class="yellow"></span>
+            </div>
+            Пуск
+        </button>
+        <div id="taskbar-apps"></div>
+        <div id="system-tray">
+            <span id="tray-icons">🔊 📶</span>
+            <span id="clock">12:00</span>
+        </div
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
